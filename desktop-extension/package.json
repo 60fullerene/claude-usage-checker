@@ -1,6 +1,6 @@
 {
   "name": "claude-usage-desktop-extension",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Claude Desktop extension that lets Claude see how much of its 5-hour and weekly usage limits remain.",
   "type": "module",

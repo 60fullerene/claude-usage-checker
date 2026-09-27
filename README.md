@@ -9,20 +9,24 @@ Claude に「使用量はあとどれくらい残ってる？」と聞けば答�
 ## しくみ
 
 ```text
-Chrome / Edge（claude.ai にログイン済み）
-  └─ ブラウザ拡張「Usage Bridge for Claude」
-       claude.ai の使用量を、ブラウザのログインのまま読み取る
-            │
-            │  このパソコンの中だけ（127.0.0.1）
-            ▼
-Claude Desktop
-  └─ デスクトップ拡張「Claude Usage」
-       Claude に get_claude_usage ツールを提供する
+Claude「使用量の残りは？」
+   │ get_claude_usage ツール
+   ▼
+Claude Desktop ─ デスクトップ拡張「Claude Usage」
+   │ ① 読んで（このパソコンの中だけ：127.0.0.1）
+   ▼
+Chrome / Edge ─ ブラウザ拡張「Usage Bridge for Claude」
+   │ ② ブラウザのログインのまま使用量を読む
+   ▼
+claude.ai
+
+答えは同じ道を戻って、数秒で Claude に届きます。
 ```
 
 - パスワード・Cookie・トークンを貼り付ける必要はありません。ログイン情報はブラウザの外に出ません。
 - 使用量の数字は、このパソコンの中（127.0.0.1）でだけ受け渡しします。
-- Claude Desktop が起動していない間、ブラウザ拡張は claude.ai にアクセスしません。起動中は約3分ごとに更新し、Claude が確認したときは約1分以内に最新の値に更新します。
+- **claude.ai を読むのは、Claude が聞いたときだけです。** 定期的なチェックはしません。聞かれるとブラウザがその場で読み取り、数秒で答えます（直前 60 秒以内に読んだ値があればそれを使います）。
+- そのためにブラウザ拡張は Claude Desktop と接続を 1 本つないだままにします（このパソコンの中だけの通信）。Claude Desktop が起動していない間は、1 分に 1 回つなぎ直しを試みるだけで、claude.ai にはアクセスしません。
 
 ## 必要なもの
 
@@ -102,7 +106,7 @@ Claude Desktop で「今の使用量の残りは？」と聞いてみてくだ�
 | `*.remaining_percent` / `*.used_percent` | 残り % / 使用 % |
 | `*.resets_at` / `*.resets_in_seconds` | リセット時刻（UTC）/ リセットまでの秒数 |
 | `model_windows` | モデル別の週間枠（プランにある場合） |
-| `stale` | 値が古い（既定では 10 分以上前）とき `true`。ブラウザが閉じている場合など |
+| `stale` | 今回 claude.ai を読めず、前回の値を返したとき `true`（理由は `warnings`） |
 | `warnings` | 更新の失敗など、知っておくべきこと |
 | `organization` / `other_organizations` | どの組織の値か / ほかの組織の要約 |
 | `observed_at` / `age_seconds` | いつ claude.ai から読んだ値か |
@@ -110,7 +114,7 @@ Claude Desktop で「今の使用量の残りは？」と聞いてみてくだ�
 ツールの引数（どちらも省略可）:
 
 - `organization`: 組織の名前または UUID（複数の組織に入っている場合）
-- `max_age_seconds`: これより古い値を `stale` とみなす秒数（既定 600）
+- `max_age_seconds`: この秒数以内に読んだ値があれば、読み直さずに使う（既定 60。0 なら毎回読む）
 
 ## 設定
 
@@ -126,14 +130,14 @@ Claude Desktop で「今の使用量の残りは？」と聞いてみてくだ�
 | --- | --- |
 | ポップアップに「Claude Desktop not reachable」 | Claude Desktop が起動していて、「Claude Usage」拡張が有効か確認します。ポートを変えた場合は両方を同じ番号にします。 |
 | ポップアップに「Sign in to claude.ai」 | その拡張機能を入れたブラウザで claude.ai にログインします。 |
-| Claude が `no_data` と答える | ブラウザを起動しておき、1分ほど待ちます。ポップアップを開くとすぐに更新されます。 |
-| Claude が `stale: true` と答える | ブラウザが閉じているか、ログインが切れています。ポップアップを確認してください。 |
+| Claude が `browser_not_connected` と答える | 拡張機能を入れたブラウザを起動します。Claude Desktop を起動した直後は、つながるまで最大 1 分かかります。 |
+| Claude が `stale: true` と答える | 今回は読めなかったので前回の値です。`warnings` の理由（ブラウザが閉じている、ログインが切れているなど）を確認してください。 |
 
 ## 注意点
 
 - **非公式のツールです。** claude.ai の設定画面が使っている内部 API（`/api/organizations` と `/api/organizations/{id}/usage`）を読んでいます。Anthropic の公開 API ではないため、予告なく使えなくなる可能性があります。Anthropic とは関係ありません。
 - **利用規約について:** Claude の利用規約は、許可された方法以外のスクリプトなどによる自動アクセスを禁じています。この拡張機能は数分おきに自分の使用量を読むだけですが、非公式な方法であることを理解したうえで使ってください。
-- 使用量はブラウザが起動しているときだけ更新されます。
+- 使用量を読めるのは、拡張機能を入れたブラウザが起動しているときだけです（閉じているときは前回の値を返します）。
 - Firefox と Safari には対応していません。
 - 動作確認は、Chromium に拡張機能を読み込み、claude.ai の代わりのテスト用サーバーと本物の Claude Desktop 拡張のサーバーを使って行っています（[`e2e/`](e2e/)）。拡張機能の形式は公式ツール（`mcpb`）で検証しています。
 

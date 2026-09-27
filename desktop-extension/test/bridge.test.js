@@ -5,29 +5,21 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, test } from 'node:test';
 
-import { applyReport, createBridge, needRefresh, sanitizeReport } from '../server/lib/bridge.js';
+import { applyReport, createBridge, requestRefresh, sanitizeReport } from '../server/lib/bridge.js';
 import { Store } from '../server/lib/store.js';
+import { connectWs, EXTENSION } from './ws-client.js';
 
 const NOW = 1_790_000_000_000;
-const EXTENSION = 'chrome-extension://abcdefghijklmnopabcdefghijklmnop';
-
-test('needRefresh', () => {
-  assert.equal(needRefresh(null, null, NOW), true);
-  assert.equal(needRefresh({ attempted_at: NOW - 10_000, fetched_at: null }, null, NOW), false, 'just tried');
-  assert.equal(needRefresh({ attempted_at: NOW - 60_000, fetched_at: null }, null, NOW), true, 'no data yet');
-  const fresh = { attempted_at: NOW - 60_000, fetched_at: NOW - 60_000 };
-  assert.equal(needRefresh(fresh, null, NOW), false);
-  assert.equal(needRefresh(fresh, NOW - 5_000, NOW), true, 'Claude asked for newer data');
-  assert.equal(needRefresh(fresh, NOW - 120_000, NOW), false, 'demand already served');
-  assert.equal(needRefresh({ attempted_at: NOW - 60_000, fetched_at: NOW - 200_000 }, null, NOW), true, 'periodic refresh');
-});
+const USAGE = { limits: [{ kind: 'session', percent: 5 }, { kind: 'weekly_all', percent: 7 }] };
 
 test('sanitizeReport keeps only known fields and bounded strings', () => {
   const report = sanitizeReport(
     {
+      type: 'report',
+      id: 'x',
       fetched_at: NOW + 999_999,
       via: 'direct',
-      extension_version: '0.2.0',
+      extension_version: '0.3.0',
       orgs: [{ uuid: 'u', name: 'x'.repeat(500), usage: { limits: [] }, secret: 'nope' }, 'junk', { uuid: 'v', usage: [] }],
     },
     NOW,
@@ -40,7 +32,7 @@ test('sanitizeReport keeps only known fields and bounded strings', () => {
   assert.equal(sanitizeReport([], NOW), null);
 });
 
-test('applyReport keeps the last good reading when a refresh fails', () => {
+test('applyReport keeps the last good reading when a read fails', () => {
   const good = applyReport(null, sanitizeReport({ fetched_at: NOW - 1000, orgs: [{ uuid: 'u', usage: { limits: [] } }] }, NOW), NOW);
   assert.equal(good.fetched_at, NOW - 1000);
   assert.equal(good.error, null);
@@ -48,7 +40,6 @@ test('applyReport keeps the last good reading when a refresh fails', () => {
   assert.equal(failed.fetched_at, NOW - 1000);
   assert.equal(failed.orgs.length, 1);
   assert.deepEqual(failed.error, { code: 'LOGIN', message: 'sign in' });
-  assert.equal(failed.attempted_at, NOW + 60_000);
   const empty = applyReport(good, sanitizeReport({ orgs: [{ uuid: 'c', name: 'Console', error: 'HTTP 403' }] }, NOW), NOW);
   assert.equal(empty.error.code, 'NO_USAGE');
   assert.match(empty.error.message, /Console: HTTP 403/);
@@ -56,32 +47,26 @@ test('applyReport keeps the last good reading when a refresh fails', () => {
 
 let tmp;
 let store;
-let bridges = [];
+let bridges;
+let sockets;
 
 beforeEach(() => {
   tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'cu-bridge-'));
   store = new Store(tmp);
+  bridges = [];
+  sockets = [];
 });
 afterEach(async () => {
+  for (const socket of sockets) socket.socket.destroy();
   await Promise.all(bridges.map((bridge) => bridge.close()));
-  bridges = [];
   fs.rmSync(tmp, { recursive: true, force: true });
 });
 
-async function startBridge(port = 0) {
-  // Port 0 is not allowed by the manifest but lets the OS pick a free port for tests.
-  const bridge = createBridge({ port: await freePort(port), store, version: 'test', clock: () => NOW });
-  bridges.push(bridge);
-  await waitFor(() => bridge.listening);
-  return bridge;
-}
-
-function freePort(port) {
-  if (port) return port;
+function freePort() {
   return new Promise((resolve) => {
     const probe = http.createServer().listen(0, '127.0.0.1', () => {
-      const { port: picked } = probe.address();
-      probe.close(() => resolve(picked));
+      const { port } = probe.address();
+      probe.close(() => resolve(port));
     });
   });
 }
@@ -94,7 +79,29 @@ async function waitFor(check, timeout = 3000) {
   }
 }
 
-function request(port, { method = 'GET', path: urlPath = '/v1/state', headers = {}, body } = {}) {
+async function startBridge(options = {}) {
+  const port = options.port ?? (await freePort());
+  const bridge = createBridge({ port, store: options.store ?? store, version: 'test', clock: () => NOW, ...options });
+  bridges.push(bridge);
+  await waitFor(() => bridge.listening);
+  return { bridge, port };
+}
+
+async function extension(port) {
+  const socket = await connectWs(port);
+  sockets.push(socket);
+  socket.send({ type: 'hello', extension_version: '0.3.0' });
+  return socket;
+}
+
+/** Answer the next refresh request like the browser extension would. */
+async function answer(socket, report) {
+  const request = await socket.next((m) => m.type === 'refresh');
+  socket.send({ type: 'report', id: request.id, ...report });
+  return request;
+}
+
+function http1(port, { method = 'GET', path: urlPath = '/v1/status', headers = {} } = {}) {
   return new Promise((resolve, reject) => {
     const req = http.request({ host: '127.0.0.1', port, method, path: urlPath, headers: { host: `127.0.0.1:${port}`, ...headers } }, (res) => {
       let data = '';
@@ -102,62 +109,128 @@ function request(port, { method = 'GET', path: urlPath = '/v1/state', headers = 
       res.on('end', () => resolve({ status: res.statusCode, body: data ? JSON.parse(data) : null }));
     });
     req.on('error', reject);
-    if (body !== undefined) req.write(typeof body === 'string' ? body : JSON.stringify(body));
     req.end();
   });
 }
 
-test('bridge answers state checks and stores reports from extensions', async () => {
-  const port = await freePort();
-  await startBridge(port);
-  const state = await request(port, { headers: { origin: EXTENSION } });
-  assert.equal(state.status, 200);
-  assert.deepEqual(state.body, { service: 'claude-usage-checker', version: 'test', need_refresh: true });
-  assert.equal(store.readBridgeSeenAt(), NOW);
-
-  const report = { fetched_at: NOW, orgs: [{ uuid: 'u', name: 'Personal', usage: { limits: [{ kind: 'session', percent: 5 }] } }] };
-  const posted = await request(port, { method: 'POST', path: '/v1/report', headers: { origin: EXTENSION }, body: report });
-  assert.equal(posted.status, 204);
+test('a refresh asks the connected extension and stores its reading', async () => {
+  const { port } = await startBridge();
+  const socket = await extension(port);
+  const refreshing = requestRefresh(port);
+  await answer(socket, { fetched_at: NOW, via: 'direct', orgs: [{ uuid: 'u', name: 'Personal', usage: USAGE }] });
+  const result = await refreshing;
+  assert.equal(result.status, 'ok');
+  assert.equal(result.connected, 1);
   assert.equal(store.readSnapshot().orgs[0].name, 'Personal');
-  assert.equal((await request(port, { headers: { origin: EXTENSION } })).body.need_refresh, false);
 });
 
-test('bridge rejects web pages, foreign hosts, anonymous reports and junk', async () => {
-  const port = await freePort();
-  await startBridge(port);
-  assert.equal((await request(port, { headers: { origin: 'https://evil.example' } })).status, 403);
-  assert.equal((await request(port, { headers: { origin: 'null' } })).status, 403);
-  assert.equal((await request(port, { headers: { host: `evil.example:${port}` } })).status, 421);
-  assert.equal((await request(port, { method: 'POST', path: '/v1/report', body: { orgs: [] } })).status, 403);
-  assert.equal((await request(port, { method: 'POST', path: '/v1/report', headers: { origin: EXTENSION }, body: '{nope' })).status, 400);
-  assert.equal((await request(port, { method: 'POST', path: '/v1/report', headers: { origin: EXTENSION }, body: '"x"' })).status, 400);
-  assert.equal((await request(port, { path: '/other' })).status, 404);
-  const big = { orgs: [{ usage: { pad: 'x'.repeat(1 << 20) } }] };
-  assert.equal((await request(port, { method: 'POST', path: '/v1/report', headers: { origin: EXTENSION }, body: big })).status, 413);
-  assert.equal(store.readSnapshot(), null);
+test('refresh without a connected extension says so right away', async () => {
+  const { port } = await startBridge();
+  const result = await requestRefresh(port);
+  assert.equal(result.status, 'no_extension');
+  assert.equal(result.connected, 0);
 });
 
-test('a second copy waits for the port instead of failing', async () => {
-  const port = await freePort();
-  const first = await startBridge(port);
+test('concurrent refreshes share one read of claude.ai', async () => {
+  const { port } = await startBridge();
+  const socket = await extension(port);
+  const results = Promise.all([requestRefresh(port), requestRefresh(port), requestRefresh(port)]);
+  const request = await socket.next((m) => m.type === 'refresh');
+  await new Promise((r) => setTimeout(r, 200)); // let all three requests reach the server
+  socket.send({ type: 'report', id: request.id, fetched_at: NOW, orgs: [{ uuid: 'u', usage: USAGE }] });
+  assert.deepEqual((await results).map((r) => r.status), ['ok', 'ok', 'ok']);
+  await new Promise((r) => setTimeout(r, 100));
+  assert.equal(socket.messages.filter((m) => m.type === 'refresh').length, 0, 'only one refresh was sent');
+});
+
+test('a read that fails is reported as an error and keeps the old reading', async () => {
+  const { port } = await startBridge();
+  const socket = await extension(port);
+  let refreshing = requestRefresh(port);
+  await answer(socket, { fetched_at: NOW, orgs: [{ uuid: 'u', usage: USAGE }] });
+  await refreshing;
+  refreshing = requestRefresh(port);
+  await answer(socket, { orgs: [], error: { code: 'LOGIN', message: 'Sign in to claude.ai in this browser.' } });
+  const result = await refreshing;
+  assert.equal(result.status, 'error');
+  assert.match(result.error, /Sign in/);
+  assert.equal(store.readSnapshot().fetched_at, NOW);
+});
+
+test('an extension that never answers times out; one that drops out is reported', async () => {
+  const { port } = await startBridge({ reportTimeoutMs: 200 });
+  const silent = await extension(port);
+  assert.equal((await requestRefresh(port)).status, 'timeout');
+  silent.messages.length = 0;
+  const refreshing = requestRefresh(port);
+  await silent.next((m) => m.type === 'refresh');
+  silent.socket.end(); // the browser goes away without a close frame
+  assert.equal((await refreshing).status, 'disconnected');
+});
+
+test('the newest connection is asked first, older ones as a fallback', async () => {
+  const { port } = await startBridge({ reportTimeoutMs: 300 });
+  const older = await extension(port);
+  const newer = await extension(port);
+  const refreshing = requestRefresh(port);
+  await answer(newer, { orgs: [], error: { code: 'LOGIN', message: 'signed out here' } });
+  await answer(older, { fetched_at: NOW, orgs: [{ uuid: 'u', usage: USAGE }] });
+  assert.equal((await refreshing).status, 'ok');
+});
+
+test('unsolicited reports (popup refresh) are stored too', async () => {
+  const { port } = await startBridge();
+  const socket = await extension(port);
+  socket.send({ type: 'report', id: null, fetched_at: NOW, orgs: [{ uuid: 'u', name: 'P', usage: USAGE }] });
+  socket.send({ type: 'ping' });
+  await socket.next((m) => m.type === 'pong');
+  assert.equal(store.readSnapshot().orgs[0].name, 'P');
+});
+
+test('web pages, foreign hosts and non-extensions are turned away', async () => {
+  const { port } = await startBridge();
+  await assert.rejects(connectWs(port, { origin: 'https://evil.example' }), { status: 403 });
+  await assert.rejects(connectWs(port, { origin: null }), { status: 403 });
+  await assert.rejects(connectWs(port, { host: `evil.example:${port}` }), { status: 421 });
+  await assert.rejects(connectWs(port, { path: '/elsewhere' }), { status: 404 });
+  assert.equal((await http1(port, { method: 'POST', path: '/v1/refresh', headers: { origin: 'https://evil.example' } })).status, 403);
+  assert.equal((await http1(port, { method: 'POST', path: '/v1/refresh', headers: { origin: EXTENSION } })).status, 403);
+  assert.equal((await http1(port, { headers: { origin: 'https://evil.example' } })).status, 403);
+  assert.equal((await http1(port, { headers: { host: `evil.example:${port}` } })).status, 421);
+  assert.equal((await http1(port, { path: '/other' })).status, 404);
+  const status = await http1(port, { headers: { origin: EXTENSION } });
+  assert.deepEqual(status.body, { service: 'claude-usage-checker', version: 'test', connected: 0 });
+});
+
+test('a second copy waits for the port and refreshes go through the first', async () => {
+  const { port } = await startBridge();
   const second = createBridge({ port, store, version: 'test' });
   bridges.push(second);
   await new Promise((r) => setTimeout(r, 200));
-  assert.equal(first.listening, true);
   assert.equal(second.listening, false);
+  assert.equal((await requestRefresh(port)).status, 'no_extension');
 });
 
-test('an unwritable cache does not take the state endpoint down', async () => {
+test('refresh reports a port held by something else', async () => {
   const port = await freePort();
+  const other = http.createServer((req, res) => res.end('hello')).listen(port, '127.0.0.1');
+  await new Promise((r) => other.once('listening', r));
+  const result = await requestRefresh(port);
+  assert.equal(result.status, 'unreachable');
+  assert.match(result.error, /not this extension/);
+  other.close();
+  assert.equal((await requestRefresh(port)).status, 'unreachable', 'nothing listening');
+});
+
+test('an unwritable cache does not break refreshes', async () => {
   const failing = Object.assign(Object.create(Store.prototype), store, {
-    writeBridgeSeenAt() {
+    write() {
       throw new Error('read-only file system');
     },
   });
-  const bridge = createBridge({ port, store: failing, version: 'test', clock: () => NOW });
-  bridges.push(bridge);
-  await waitFor(() => bridge.listening);
-  const state = await request(port, { headers: { origin: EXTENSION } });
-  assert.equal(state.status, 200);
-  assert.equal(state.body.need_refresh, true);
+  const { port } = await startBridge({ store: failing });
+  const socket = await extension(port);
+  const refreshing = requestRefresh(port);
+  await answer(socket, { fetched_at: NOW, orgs: [{ uuid: 'u', usage: USAGE }] });
+  assert.equal((await refreshing).status, 'ok');
 });

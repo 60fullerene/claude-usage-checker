@@ -2,9 +2,9 @@
   "manifest_version": "0.3",
   "name": "claude-usage",
   "display_name": "Claude Usage",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Lets Claude see how much of your 5-hour and weekly usage limits remain.",
-  "long_description": "Adds a get_claude_usage tool that reports the remaining percentage of your Claude plan's rolling 5-hour window and weekly window, with reset times, so Claude can pace long tasks and wrap up before hitting a limit.\n\nThe numbers come from the companion browser extension \"Usage Bridge for Claude\" (Chrome or Edge), which reads them from claude.ai with the browser's own sign-in and hands them to this extension over 127.0.0.1 only. No password, cookie or token is copied anywhere.\n\nUnofficial; not affiliated with Anthropic.",
+  "long_description": "Adds a get_claude_usage tool that reports the remaining percentage of your Claude plan's rolling 5-hour window and weekly window, with reset times, so Claude can pace long tasks and wrap up before hitting a limit.\n\nThe numbers come from the companion browser extension \"Usage Bridge for Claude\" (Chrome or Edge): only when Claude asks, it reads them from claude.ai with the browser's own sign-in and hands them to this extension over 127.0.0.1. No password, cookie or token is copied anywhere, and nothing is checked in the background.\n\nUnofficial; not affiliated with Anthropic.",
   "author": {
     "name": "60fullerene",
     "url": "https://github.com/60fullerene"

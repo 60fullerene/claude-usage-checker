@@ -20,9 +20,11 @@ Both return the same main fields:
 - `five_hour.remaining_percent`, `seven_day.remaining_percent`: 0-100 (`null` if the plan has no such limit).
 - `five_hour.resets_in_seconds`, `seven_day.resets_in_seconds`: time until the window resets.
 - `model_windows`: weekly limits for specific models, if the plan has them.
-- `stale`: true when the reading is old; treat the numbers as approximate.
+- `stale`: true when fresh numbers could not be read just now and an older reading is shown
+  (`warnings` says why); treat them as approximate.
 
-A check is cheap and consumes no usage, but there is no need to check more than every few minutes.
+A check takes a few seconds and consumes no usage, but there is no need to check more than every few
+minutes.
 
 ## Acting on the result
 

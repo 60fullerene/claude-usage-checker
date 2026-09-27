@@ -38,7 +38,7 @@ const ENTERPRISE_PAYLOAD = {
 function snapshot(orgs, overrides = {}) {
   return { version: 1, attempted_at: NOW - 60_000, fetched_at: NOW - 60_000, orgs, error: null, error_at: null, ...overrides };
 }
-const report = (snap, options = {}) => buildReport({ snapshot: snap, bridgeSeenAt: NOW - 30_000, maxAgeMs: 600_000, now: NOW, ...options });
+const report = (snap, options = {}) => buildReport({ snapshot: snap, refresh: { status: 'ok' }, port: 47832, now: NOW, ...options });
 
 test('parseTime accepts epoch seconds, milliseconds and ISO strings', () => {
   assert.equal(parseTime(1790000000), 1790000000000);
@@ -125,29 +125,35 @@ test('buildReport picks the organization with limits and lists the others', () =
   assert.match(missing.error.hint, /Acme Corp, Team Alpha/);
 });
 
-test('buildReport flags stale readings and failed refreshes', () => {
-  const old = snapshot([{ uuid: 'o', name: 'P', usage: LIMITS_PAYLOAD }], {
-    fetched_at: NOW - 20 * 60_000,
-    error: { code: 'LOGIN', message: 'Not signed in to claude.ai' },
-    error_at: NOW - 60_000,
-  });
-  const away = report(old, { bridgeSeenAt: null });
-  assert.equal(away.stale, true);
-  assert.match(away.warnings[0], /20m old.*has not checked in/);
-  assert.match(away.warnings[1], /latest refresh failed: Not signed in/);
-  const connected = report(old, { bridgeSeenAt: NOW - 10_000 });
-  assert.match(connected.warnings[0], /refresh has been requested/);
+test('buildReport: a failed read shows the last reading as stale, with the reason', () => {
+  const old = snapshot([{ uuid: 'o', name: 'P', usage: LIMITS_PAYLOAD }], { fetched_at: NOW - 20 * 60_000 });
+  const offline = report(old, { refresh: { status: 'no_extension' } });
+  assert.equal(offline.ok, true);
+  assert.equal(offline.stale, true);
+  assert.match(offline.warnings[0], /Could not read claude.ai just now \(The "Usage Bridge for Claude" browser extension is not connected\.\) Showing the reading from 20m0s ago|Showing the reading from 20m ago/);
+  assert.match(offline.warnings[0], /Open Chrome or Edge/);
+  const signedOut = report(
+    { ...old, error: { code: 'LOGIN', message: 'claude.ai refused the request (HTTP 401).' }, error_at: NOW },
+    { refresh: { status: 'error', error: 'claude.ai refused the request (HTTP 401).' } },
+  );
+  assert.match(signedOut.warnings[0], /HTTP 401.*Sign in to claude.ai/);
+  const reused = report(old, { refresh: null });
+  assert.equal(reused.stale, false, 'a reading reused on purpose is not stale');
+  assert.equal(reused.age_seconds, 1200);
 });
 
-test('buildReport errors when nothing usable has arrived', () => {
-  const none = report(null, { bridgeSeenAt: null });
-  assert.equal(none.ok, false);
-  assert.equal(none.error.code, 'no_data');
-  assert.match(none.error.hint, /Install the "Usage Bridge for Claude"/);
-  assert.match(report(null).error.hint, /connected/);
-  const login = report({ attempted_at: NOW, fetched_at: null, orgs: [], error: { code: 'LOGIN', message: 'Not signed in' } });
+test('buildReport explains why there is no reading at all', () => {
+  const codes = (refresh, snap = null) => report(snap, { refresh }).error.code;
+  assert.equal(codes({ status: 'no_extension' }), 'browser_not_connected');
+  assert.equal(codes({ status: 'unreachable', error: 'connect ECONNREFUSED' }), 'bridge_unreachable');
+  assert.equal(codes({ status: 'timeout' }), 'browser_timeout');
+  assert.equal(codes({ status: 'disconnected' }), 'browser_timeout');
+  assert.equal(codes(null), 'no_data');
+  const login = report({ attempted_at: NOW, fetched_at: null, orgs: [], error: { code: 'LOGIN', message: 'Not signed in' } }, { refresh: { status: 'error', error: 'Not signed in' } });
   assert.equal(login.error.code, 'browser_login');
   assert.match(login.error.hint, /Sign in to claude.ai/);
+  const unreachable = report(null, { refresh: { status: 'unreachable', error: 'connect ECONNREFUSED' } });
+  assert.match(unreachable.error.message, /127\.0\.0\.1:47832 \(connect ECONNREFUSED\)/);
 });
 
 test('buildReport estimates a window that reset since the reading', () => {
@@ -156,5 +162,5 @@ test('buildReport estimates a window that reset since the reading', () => {
   assert.equal(r.five_hour.remaining_percent, 100);
   assert.equal(r.five_hour.estimated, true);
   assert.match(r.summary, /5h: 100% left \(window reset since last reading\)/);
-  assert.match(r.warnings[0], /reset after the last reading/);
+  assert.match(r.warnings[0], /reset after this reading/);
 });

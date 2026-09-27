@@ -28,7 +28,7 @@ const server = new McpServer({
   info: { name: 'claude-usage', version: VERSION },
   instructions: INSTRUCTIONS,
   tools: [TOOL],
-  callTool: createToolHandler({ store, defaultOrganization: setting(process.env.CLAUDE_USAGE_ORGANIZATION) }),
+  callTool: createToolHandler({ store, port, defaultOrganization: setting(process.env.CLAUDE_USAGE_ORGANIZATION) }),
 });
 
 await serveStdio(server);

@@ -168,26 +168,72 @@ function matchOrg(orgs, query) {
   );
 }
 
+/** Why reading claude.ai just now did not work, for Claude and for the user. */
+function refreshFailure(refresh, port) {
+  switch (refresh.status) {
+    case 'no_extension':
+      return {
+        code: 'browser_not_connected',
+        message: 'The "Usage Bridge for Claude" browser extension is not connected.',
+        hint: 'Open Chrome or Edge with the "Usage Bridge for Claude" extension installed and signed in to claude.ai, then ask again.',
+      };
+    case 'unreachable':
+      return {
+        code: 'bridge_unreachable',
+        message: `Could not reach the local bridge on 127.0.0.1:${port} (${refresh.error}).`,
+        hint: 'Restart Claude Desktop. If another program uses this port, choose another port in both extensions.',
+      };
+    case 'timeout':
+    case 'disconnected':
+      return {
+        code: 'browser_timeout',
+        message: 'The browser extension did not answer in time.',
+        hint: 'Open the "Usage Bridge for Claude" popup in your browser to see what is wrong, then ask again.',
+      };
+    default:
+      return {
+        code: 'browser_error',
+        message: refresh.error || 'The browser extension could not read claude.ai.',
+        hint: 'Open the "Usage Bridge for Claude" popup in your browser for details.',
+      };
+  }
+}
+
+function errorHint(code) {
+  switch (code) {
+    case 'LOGIN':
+      return 'Sign in to claude.ai in the browser that has the "Usage Bridge for Claude" extension.';
+    case 'NETWORK':
+      return 'Check that the browser can reach claude.ai.';
+    default:
+      return 'Open the "Usage Bridge for Claude" extension popup in your browser for details.';
+  }
+}
+
 /**
  * Build the tool result from the stored snapshot (what the browser extension
- * last reported) and the bridge status (when the extension last checked in).
+ * last read from claude.ai) and the outcome of asking it to read again just
+ * now (`refresh`; null when a recent enough reading was reused).
  */
-export function buildReport({ snapshot, bridgeSeenAt = null, organization = null, maxAgeMs, now }) {
+export function buildReport({ snapshot, refresh = null, organization = null, port = null, now }) {
   const orgs = (snapshot && Array.isArray(snapshot.orgs) ? snapshot.orgs : []).map((org) => ({
     ...org,
     normalized: normalizeUsage(org.usage),
   }));
   const lastError = snapshot && isObject(snapshot.error) ? snapshot.error : null;
+  const failed = refresh && refresh.status !== 'ok' ? refresh : null;
 
   if (snapshot?.fetched_at == null || !orgs.length) {
-    if (lastError) {
-      return errorReport(`browser_${String(lastError.code || 'error').toLowerCase()}`, lastError.message || 'The browser extension could not read claude.ai.', now, errorHint(lastError.code));
+    // Nothing usable yet: explain the most specific reason we know.
+    if (lastError && (!failed || failed.status === 'error')) {
+      const code = String(lastError.code || 'error').toLowerCase();
+      return errorReport(`browser_${code}`, lastError.message || 'The browser extension could not read claude.ai.', now, errorHint(lastError.code));
     }
-    const hint =
-      bridgeSeenAt === null
-        ? 'Install the "Usage Bridge for Claude" browser extension in Chrome or Edge and sign in to claude.ai in that browser. Keep the browser running.'
-        : 'The browser extension is connected; the first reading should arrive within about a minute.';
-    return errorReport('no_data', 'No usage reading has arrived from the browser extension yet.', now, hint);
+    if (failed) {
+      const why = refreshFailure(failed, port);
+      return errorReport(why.code, why.message, now, why.hint);
+    }
+    return errorReport('no_data', 'No usage reading yet.', now, refreshFailure({ status: 'no_extension' }, port).hint);
   }
 
   let org;
@@ -207,11 +253,11 @@ export function buildReport({ snapshot, bridgeSeenAt = null, organization = null
   for (const name of PRIMARY) {
     report[name] = name in windows ? windowReport(windows[name], now) : null;
     if (report[name]?.estimated) {
-      warnings.push(`The ${labelFor(name)} window reset after the last reading; its usage is reported as 0% until new data arrives.`);
+      warnings.push(`The ${labelFor(name)} window reset after this reading; its usage is reported as 0%.`);
     }
   }
   const ageMs = Math.max(0, now - snapshot.fetched_at);
-  report.stale = ageMs > maxAgeMs;
+  report.stale = Boolean(failed); // true when claude.ai could not be read now and an older reading is shown
   report.warnings = warnings;
 
   const others = Object.keys(windows).filter((name) => !PRIMARY.includes(name)).sort();
@@ -235,29 +281,12 @@ export function buildReport({ snapshot, bridgeSeenAt = null, organization = null
   if (!hasPrimaryWindow(org.normalized)) {
     warnings.push(`No 5-hour or weekly limits apply to the organization "${org.name || org.uuid}" (for example a usage-based Enterprise plan).`);
   }
-  if (report.stale) {
-    const extensionAway = bridgeSeenAt === null || now - bridgeSeenAt > 3 * 60_000;
-    warnings.push(
-      `The last reading is ${fmtDuration(ageMs / 1000)} old.` +
-        (extensionAway
-          ? ' The browser extension has not checked in recently: keep Chrome/Edge with "Usage Bridge for Claude" running and signed in to claude.ai.'
-          : ' A refresh has been requested; ask again in about a minute.'),
-    );
-  }
-  if (lastError && (snapshot.error_at ?? 0) > snapshot.fetched_at) {
-    warnings.push(`The latest refresh failed: ${lastError.message || lastError.code}.`);
+  if (failed) {
+    const why = failed.status === 'error' && lastError ? { message: lastError.message || failed.error, hint: errorHint(lastError.code) } : refreshFailure(failed, port);
+    warnings.push(`Could not read claude.ai just now (${why.message}) Showing the reading from ${fmtDuration(ageMs / 1000)} ago. ${why.hint}`);
+  } else if (lastError && (snapshot.error_at ?? 0) > snapshot.fetched_at) {
+    warnings.push(`The latest read of claude.ai failed: ${lastError.message || lastError.code}`);
   }
   report.summary = summaryLine(report);
   return report;
-}
-
-function errorHint(code) {
-  switch (code) {
-    case 'LOGIN':
-      return 'Sign in to claude.ai in the browser that has the "Usage Bridge for Claude" extension.';
-    case 'NETWORK':
-      return 'Check that the browser can reach claude.ai.';
-    default:
-      return 'Open the "Usage Bridge for Claude" extension popup in your browser for details.';
-  }
 }

@@ -1,13 +1,11 @@
-// Small JSON files shared by every running copy of the server (Claude Desktop
-// can start several: one for chats, more for Code tab sessions).
+// The latest reading, in a file shared by every running copy of the server
+// (Claude Desktop can start several: one for chats, more for Code tab sessions).
 
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-export const SNAPSHOT_FILE = 'browser-usage.json'; // the latest report from the browser extension
-export const DEMAND_FILE = 'browser-demand.json'; // when Claude last wanted fresher data
-export const BRIDGE_FILE = 'browser-bridge.json'; // when the browser extension last checked in
+export const SNAPSHOT_FILE = 'browser-usage.json';
 
 export function defaultCacheDir(env = process.env, platform = process.platform, home = os.homedir()) {
   if (env.CLAUDE_USAGE_CACHE_DIR) return env.CLAUDE_USAGE_CACHE_DIR;
@@ -52,23 +50,5 @@ export class Store {
 
   readSnapshot() {
     return this.read(SNAPSHOT_FILE);
-  }
-
-  readDemandAt() {
-    const at = this.read(DEMAND_FILE)?.demand_at;
-    return typeof at === 'number' ? at : null;
-  }
-
-  writeDemandAt(now) {
-    this.write(DEMAND_FILE, { demand_at: now });
-  }
-
-  readBridgeSeenAt() {
-    const at = this.read(BRIDGE_FILE)?.seen_at;
-    return typeof at === 'number' ? at : null;
-  }
-
-  writeBridgeSeenAt(now) {
-    this.write(BRIDGE_FILE, { seen_at: now });
   }
 }

@@ -1,6 +1,6 @@
 {
   "name": "claude-usage-checker",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Lets Claude see how much of its 5-hour and weekly usage limits remain.",
   "type": "module",

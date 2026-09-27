@@ -34,18 +34,21 @@ function windowRow(label, window) {
 }
 
 function render(status) {
+  if (!status || status.error) return;
   if (status.desktop === 'connected') {
-    setLine('desktop', 'ok', `Claude Desktop connected (port ${status.port})`);
-  } else if (status.desktop === 'unreachable') {
-    setLine('desktop', 'bad', `Claude Desktop not reachable on port ${status.port}: start Claude Desktop with the “Claude Usage” extension enabled.`);
+    setLine('desktop', 'ok', `Connected to Claude Desktop (port ${status.port}). Claude can check its usage.`);
+  } else if (status.desktop === 'disconnected') {
+    setLine('desktop', 'bad', `Not connected to Claude Desktop on port ${status.port}: start Claude Desktop with the “Claude Usage” extension enabled.`);
   }
 
   const fetch = status.last_fetch;
   if (fetch?.error) {
     setLine('claude', 'bad', fetch.error.message);
   } else if (fetch) {
-    const delivered = status.delivered_at && status.delivered_at >= fetch.at ? 'sent to Claude Desktop' : 'not sent (Claude Desktop not reachable)';
-    setLine('claude', 'ok', `claude.ai read ${formatAgo(fetch.at)}, ${delivered}`);
+    const sent = status.delivered_at && status.delivered_at >= fetch.at ? ', sent to Claude Desktop' : '';
+    setLine('claude', 'ok', `claude.ai read ${formatAgo(fetch.at)}${sent}`);
+  } else {
+    setLine('claude', '', 'claude.ai has not been read yet. It is read only when Claude asks, or when you press Refresh.');
   }
 
   const container = $('orgs');
@@ -79,7 +82,7 @@ $('save').addEventListener('click', async () => {
   if (!Number.isInteger(port) || port < 1024 || port > 65535) return;
   const { settings } = await chrome.storage.local.get('settings');
   await chrome.storage.local.set({ settings: { ...settings, port } });
-  refresh();
+  render(await chrome.runtime.sendMessage({ type: 'status' }));
 });
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'local' && changes.status?.newValue) render(changes.status.newValue);
@@ -88,6 +91,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
 (async () => {
   $('port').value = (await getSettings()).port;
   const { status } = await chrome.storage.local.get('status');
-  if (status) render(status);
-  refresh(); // opening the popup reads claude.ai right away
+  render(status);
+  render(await chrome.runtime.sendMessage({ type: 'status' }));
+  refresh(); // you opened the popup to see your usage: read claude.ai now
 })();
