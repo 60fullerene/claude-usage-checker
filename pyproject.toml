@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "claude-usage-checker"
+version = "0.1.0"
+description = "Let AI agents check how much of Claude's 5-hour and weekly usage limits remain."
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = []
+keywords = ["claude", "claude-code", "usage", "rate-limit", "mcp", "agent"]
+classifiers = [
+    "Environment :: Console",
+    "Operating System :: POSIX",
+    "Operating System :: MacOS",
+    "Programming Language :: Python :: 3",
+]
+
+[project.urls]
+Repository = "https://github.com/60fullerene/claude-usage-checker"
+
+[project.scripts]
+claude-usage = "claude_usage_checker.cli:main"
+claude-usage-checker = "claude_usage_checker.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
