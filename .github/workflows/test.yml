@@ -5,8 +5,36 @@ on:
   pull_request:
 
 jobs:
-  test:
+  desktop-extension:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ["18", "22"]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm test
+      - run: npx -y @anthropic-ai/mcpb@2 validate desktop-extension/manifest.json
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - run: npm install --no-save playwright@1.56.1
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+
+  cli:
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: cli
     strategy:
       fail-fast: false
       matrix:

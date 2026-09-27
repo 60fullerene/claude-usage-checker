@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Usage Bridge for Claude</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <h1>Usage Bridge for Claude</h1>
+    <ul class="status">
+      <li id="desktop"><span class="dot"></span><span class="text">Checking Claude Desktop…</span></li>
+      <li id="claude"><span class="dot"></span><span class="text">Waiting for claude.ai…</span></li>
+    </ul>
+    <div id="orgs"></div>
+    <button id="refresh" type="button">Refresh now</button>
+    <details>
+      <summary>Settings</summary>
+      <label>Port <input id="port" type="number" min="1024" max="65535" /></label>
+      <button id="save" type="button">Save</button>
+      <p class="hint">Use the same port as the “Claude Usage” extension in Claude Desktop (default 47832).</p>
+    </details>
+    <p class="hint">Unofficial. Your usage goes only to Claude Desktop on this computer (127.0.0.1).</p>
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

@@ -1,0 +1,62 @@
+{
+  "manifest_version": "0.3",
+  "name": "claude-usage",
+  "display_name": "Claude Usage",
+  "version": "0.2.0",
+  "description": "Lets Claude see how much of your 5-hour and weekly usage limits remain.",
+  "long_description": "Adds a get_claude_usage tool that reports the remaining percentage of your Claude plan's rolling 5-hour window and weekly window, with reset times, so Claude can pace long tasks and wrap up before hitting a limit.\n\nThe numbers come from the companion browser extension \"Usage Bridge for Claude\" (Chrome or Edge), which reads them from claude.ai with the browser's own sign-in and hands them to this extension over 127.0.0.1 only. No password, cookie or token is copied anywhere.\n\nUnofficial; not affiliated with Anthropic.",
+  "author": {
+    "name": "60fullerene",
+    "url": "https://github.com/60fullerene"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/60fullerene/claude-usage-checker"
+  },
+  "homepage": "https://github.com/60fullerene/claude-usage-checker",
+  "documentation": "https://github.com/60fullerene/claude-usage-checker#readme",
+  "support": "https://github.com/60fullerene/claude-usage-checker/issues",
+  "icon": "icon.png",
+  "server": {
+    "type": "node",
+    "entry_point": "server/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/server/index.js"],
+      "env": {
+        "CLAUDE_USAGE_PORT": "${user_config.port}",
+        "CLAUDE_USAGE_ORGANIZATION": "${user_config.organization}"
+      }
+    }
+  },
+  "tools": [
+    {
+      "name": "get_claude_usage",
+      "description": "Remaining percentage of the 5-hour and weekly usage limits, with reset times."
+    }
+  ],
+  "keywords": ["claude", "usage", "limits", "quota", "rate limit"],
+  "compatibility": {
+    "platforms": ["darwin", "win32", "linux"],
+    "runtimes": {
+      "node": ">=18.0.0"
+    }
+  },
+  "user_config": {
+    "organization": {
+      "type": "string",
+      "title": "Organization (optional)",
+      "description": "If your account belongs to several claude.ai organizations (for example a personal plan and a team), the name of the one to report. Leave empty to use the first one that has 5-hour/weekly limits.",
+      "required": false
+    },
+    "port": {
+      "type": "number",
+      "title": "Local port",
+      "description": "Port on 127.0.0.1 where the browser extension delivers readings. Change it only if 47832 is used by something else, and set the same port in the browser extension.",
+      "default": 47832,
+      "min": 1024,
+      "max": 65535,
+      "required": false
+    }
+  }
+}
