@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Usage Bridge for Claude",
   "version": "0.3.0",
-  "description": "When Claude in Claude Desktop asks, reads your claude.ai 5-hour and weekly usage and hands it to the Claude Usage extension. Unofficial.",
+  "description": "Lets Claude in Claude Desktop check your claude.ai 5-hour and weekly usage. Reads it only when Claude asks. Unofficial.",
   "permissions": ["alarms", "storage", "scripting"],
   "host_permissions": ["https://claude.ai/*", "http://127.0.0.1/*"],
   "background": {

@@ -36,32 +36,26 @@ claude.ai
 
 ## インストール（ターミナル操作は不要）
 
-### 1. Claude Desktop に拡張機能を追加する
+[`dist/claude-usage-checker.zip`](dist/claude-usage-checker.zip) を開いて「Download raw file」ボタンでダウンロードし、展開します。手順は同梱の **取扱説明書.pdf** に画面つきで書いてあります（ダウンロードする前に読むなら [`dist/manual.pdf`](dist/manual.pdf)）。
 
-1. [`dist/claude-usage.mcpb`](dist/claude-usage.mcpb) を開き、「Download raw file」ボタンでダウンロードします。
-2. ダウンロードした `claude-usage.mcpb` をダブルクリックします。Claude Desktop が開くので「インストール」を押します。
-   - ダブルクリックで開かない場合は、Claude Desktop の Settings（設定）→ Extensions（拡張機能）の画面にファイルをドラッグ＆ドロップしてください。
-3. 拡張機能の一覧で「Claude Usage」が有効になっていることを確認します。
+| 同梱物 | 内容 |
+| --- | --- |
+| `取扱説明書.pdf` | 取扱説明書 |
+| `claude-usage.mcpb` | Claude Desktop 拡張「Claude Usage」 |
+| `usage-bridge-for-claude/` | ブラウザ拡張「Usage Bridge for Claude」（Chrome / Edge） |
+| `claude-usage-skill.zip` | （任意）Claude 向けの Skill |
 
-### 2. ブラウザに拡張機能を追加する
+手順の要約:
 
-1. [`dist/usage-bridge-for-claude.zip`](dist/usage-bridge-for-claude.zip) をダウンロードして展開します（`browser-extension` フォルダができます）。
-2. Chrome で `chrome://extensions` を開きます（Edge は `edge://extensions`）。
-3. 右上の「デベロッパー モード」をオンにします。
-4. 「パッケージ化されていない拡張機能を読み込む」を押して、展開した `browser-extension` フォルダを選びます。
-5. 同じブラウザで [claude.ai](https://claude.ai) にログインしておきます。
-
-展開したフォルダは消さずに残しておいてください（ブラウザはそのフォルダから拡張機能を読み込み続けます）。
-
-### 3. 動作を確認する
-
-ブラウザのツールバーの拡張機能ボタン（パズルのピース）から「Usage Bridge for Claude」を開きます。上の画像のように「Claude Desktop connected」と使用量が表示されれば完了です。
-
-Claude Desktop で「今の使用量の残りは？」と聞いてみてください。
+1. 展開した `claude-usage-checker` フォルダを、ドキュメントなど消さない場所に置きます（ブラウザはこのフォルダから拡張機能を読み込み続けます）。
+2. `claude-usage.mcpb` をダブルクリックし、Claude Desktop で「インストール」を押します。開かない場合は、Claude Desktop の Settings → Extensions → Advanced settings の「Install Extension…」から選びます。
+3. Chrome で `chrome://extensions` を開き（Edge は `edge://extensions`）、「デベロッパー モード」をオンにして「パッケージ化されていない拡張機能を読み込む」から `usage-bridge-for-claude` フォルダを選びます（Chrome ウェブストアには公開していないため、この方法で入れます）。
+4. 同じブラウザで [claude.ai](https://claude.ai) にログインしておきます。
+5. ツールバーの拡張機能ボタン（パズルのピース）から「Usage Bridge for Claude」を開き、上の画像のように「Connected to Claude Desktop」と使用量が表示されれば完了です。Claude Desktop で「今の使用量の残りは？」と聞いてみてください。
 
 ### （任意）Skill を追加する
 
-[`dist/claude-usage-skill.zip`](dist/claude-usage-skill.zip) を Claude Desktop の Customize → Skills からアップロードしておくと、「5時間枠の残りが 10% を切ったら新しい大きな作業は始めず、作業を保存してまとめる」といった振る舞いを Claude が覚えます。内容は [`skills/claude-usage/SKILL.md`](skills/claude-usage/SKILL.md) で、好みに合わせて書き換えられます。
+同梱の `claude-usage-skill.zip` を Claude Desktop の Customize → Skills →「＋」→ Create skill → Upload a skill から追加しておくと、「5時間枠の残りが 10% を切ったら新しい大きな作業は始めず、作業を保存してまとめる」といった振る舞いを Claude が覚えます（Skill を使うには、Settings → Capabilities の「コード実行とファイル作成」を有効にしておく必要があります）。内容は [`skills/claude-usage/SKILL.md`](skills/claude-usage/SKILL.md) で、好みに合わせて書き換えられます。
 
 ## Claude が受け取る情報
 
@@ -128,15 +122,15 @@ Claude Desktop で「今の使用量の残りは？」と聞いてみてくだ�
 
 | 症状 | 対処 |
 | --- | --- |
-| ポップアップに「Claude Desktop not reachable」 | Claude Desktop が起動していて、「Claude Usage」拡張が有効か確認します。ポートを変えた場合は両方を同じ番号にします。 |
-| ポップアップに「Sign in to claude.ai」 | その拡張機能を入れたブラウザで claude.ai にログインします。 |
+| ポップアップに「Not connected to Claude Desktop」 | Claude Desktop が起動していて、「Claude Usage」拡張が有効か確認します。ポートを変えた場合は両方を同じ番号にします。 |
+| ポップアップに「Sign in to claude.ai in this browser」 | その拡張機能を入れたブラウザで claude.ai にログインします。 |
 | Claude が `browser_not_connected` と答える | 拡張機能を入れたブラウザを起動します。Claude Desktop を起動した直後は、つながるまで最大 1 分かかります。 |
 | Claude が `stale: true` と答える | 今回は読めなかったので前回の値です。`warnings` の理由（ブラウザが閉じている、ログインが切れているなど）を確認してください。 |
 
 ## 注意点
 
 - **非公式のツールです。** claude.ai の設定画面が使っている内部 API（`/api/organizations` と `/api/organizations/{id}/usage`）を読んでいます。Anthropic の公開 API ではないため、予告なく使えなくなる可能性があります。Anthropic とは関係ありません。
-- **利用規約について:** Claude の利用規約は、許可された方法以外のスクリプトなどによる自動アクセスを禁じています。この拡張機能は数分おきに自分の使用量を読むだけですが、非公式な方法であることを理解したうえで使ってください。
+- **利用規約について:** Claude の利用規約は、許可された方法以外のスクリプトなどによる自動アクセスを禁じています。この拡張機能は Claude に聞かれたときに自分の使用量を読むだけですが、非公式な方法であることを理解したうえで使ってください。
 - 使用量を読めるのは、拡張機能を入れたブラウザが起動しているときだけです（閉じているときは前回の値を返します）。
 - Firefox と Safari には対応していません。
 - 動作確認は、Chromium に拡張機能を読み込み、claude.ai の代わりのテスト用サーバーと本物の Claude Desktop 拡張のサーバーを使って行っています（[`e2e/`](e2e/)）。拡張機能の形式は公式ツール（`mcpb`）で検証しています。
@@ -150,7 +144,7 @@ Claude Desktop で「今の使用量の残りは？」と聞いてみてくだ�
 ```bash
 npm test             # Claude Desktop 拡張のテスト
 npm run test:e2e     # Chromium を使った E2E テスト（Playwright が必要）
-npm run build        # dist/ を作り直す
+npm run build        # dist/ を作り直す（取扱説明書の PDF 化に Playwright が必要）
 npm run icons        # アイコンを作り直す
 cd cli && python -m unittest   # コマンドライン版のテスト
 ```
@@ -162,6 +156,7 @@ cd cli && python -m unittest   # コマンドライン版のテスト
 | `desktop-extension/` | Claude Desktop 拡張（MCP サーバー、Node.js、依存パッケージなし） |
 | `browser-extension/` | ブラウザ拡張（Chrome / Edge、Manifest V3） |
 | `skills/claude-usage/` | Claude 向けの Skill |
+| `docs/manual/` | 取扱説明書の原稿（HTML）と画像 |
 | `dist/` | 配布用ファイル（`npm run build` で生成） |
 | `cli/` | Claude Code（ターミナル版）向けのコマンドライン版（Python） |
 | `e2e/` | ブラウザ拡張と Desktop 拡張をつないだ E2E テスト |

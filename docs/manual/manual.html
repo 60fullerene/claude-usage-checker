@@ -1,0 +1,889 @@
+<!doctype html>
+<!--
+  取扱説明書の原稿です。npm run build で PDF（配布 ZIP の「取扱説明書.pdf」と dist/manual.pdf）になります。
+  data-version の中身はビルド時に今のバージョンに置き換わります。
+-->
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Claude Usage 取扱説明書</title>
+    <style>
+      :root {
+        --ink: #1f2933;
+        --muted: #5b6770;
+        --line: #d5dbe0;
+        --soft: #f3f5f7;
+        --accent: #0f766e;
+        --accent-soft: #e7f4f1;
+        --warn: #b45309;
+        --warn-soft: #fff5e1;
+        --mark: #e11d48;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      body {
+        margin: 0;
+        font-family: 'BIZ UDPGothic', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', YuGothic, Meiryo, 'Noto Sans JP', sans-serif;
+        font-size: 10pt;
+        line-height: 1.7;
+        color: var(--ink);
+        background: #fff;
+      }
+      @media screen {
+        body {
+          max-width: 180mm;
+          margin: 12mm auto;
+          padding: 0 16px;
+        }
+      }
+      a {
+        color: var(--accent);
+      }
+      code {
+        font-family: Consolas, Menlo, 'DejaVu Sans Mono', 'BIZ UDPGothic', 'Hiragino Sans', 'Yu Gothic', Meiryo, monospace;
+        font-size: 0.9em;
+        background: var(--soft);
+        border-radius: 1mm;
+        padding: 0 1mm;
+        white-space: nowrap;
+      }
+      p {
+        margin: 1.5mm 0;
+      }
+      ul,
+      ol {
+        margin: 1.5mm 0;
+        padding-left: 6mm;
+      }
+      li {
+        margin: 0.8mm 0;
+      }
+      li > ul {
+        margin: 0.5mm 0;
+      }
+      .small {
+        font-size: 8.8pt;
+        color: var(--muted);
+      }
+
+      /* ---------- title ---------- */
+      .title {
+        display: flex;
+        gap: 6mm;
+        align-items: center;
+        padding: 2mm 0 5mm;
+        border-bottom: 1px solid var(--line);
+      }
+      .title img {
+        width: 22mm;
+        height: 22mm;
+        flex: none;
+      }
+      .kicker {
+        margin: 0;
+        font-size: 9pt;
+        color: var(--muted);
+        font-weight: 700;
+      }
+      h1 {
+        margin: 0.5mm 0 1mm;
+        font-size: 23pt;
+        line-height: 1.25;
+      }
+      .lead {
+        margin: 0;
+        font-size: 10.5pt;
+      }
+      .meta {
+        margin: 1mm 0 0;
+        font-size: 8.5pt;
+        color: var(--muted);
+      }
+
+      /* ---------- headings ---------- */
+      h2 {
+        margin: 7mm 0 2.5mm;
+        padding-bottom: 1.2mm;
+        font-size: 13.5pt;
+        line-height: 1.4;
+        border-bottom: 1.5pt solid var(--accent);
+        break-after: avoid;
+      }
+      h2 .num {
+        display: inline-block;
+        min-width: 7mm;
+        margin-right: 1.5mm;
+        color: var(--accent);
+      }
+      h3 {
+        margin: 4mm 0 1.5mm;
+        font-size: 11pt;
+        line-height: 1.5;
+        break-after: avoid;
+      }
+
+      /* ---------- boxes ---------- */
+      .note,
+      .warn {
+        margin: 2.5mm 0 0;
+        padding: 2mm 3.5mm;
+        border-radius: 2mm;
+        font-size: 9.2pt;
+      }
+      .note {
+        background: var(--accent-soft);
+      }
+      .warn {
+        background: var(--warn-soft);
+        border-left: 1mm solid #d97706;
+      }
+      .step {
+        margin: 4mm 0 5mm;
+        padding: 0 0 0 4mm;
+        border-left: 0.8mm solid var(--accent-soft);
+      }
+      li,
+      .note,
+      .warn {
+        break-inside: avoid;
+      }
+      .step h3 {
+        margin: 0 0 1.5mm;
+        display: flex;
+        align-items: center;
+        gap: 2.5mm;
+      }
+      .badge {
+        flex: none;
+        padding: 0.2mm 2.8mm;
+        border-radius: 99px;
+        background: var(--accent);
+        color: #fff;
+        font-size: 9pt;
+      }
+      .step ol {
+        padding-left: 5.5mm;
+      }
+
+      /* ---------- tables ---------- */
+      table {
+        width: 100%;
+        margin: 2mm 0;
+        border-collapse: collapse;
+        table-layout: fixed;
+        font-size: 9.2pt;
+        line-height: 1.6;
+      }
+      th,
+      td {
+        padding: 1.3mm 2.4mm;
+        border-top: 1px solid var(--line);
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+        vertical-align: top;
+      }
+      th {
+        background: var(--soft);
+        font-weight: 700;
+      }
+      tr {
+        break-inside: avoid;
+      }
+
+      /* ---------- chat example ---------- */
+      .chat {
+        margin: 3mm 0;
+        padding: 3mm 4mm;
+        border-radius: 2.5mm;
+        background: var(--soft);
+        break-inside: avoid;
+      }
+      .chat-label {
+        margin: 0 0 1.5mm;
+        font-size: 8.5pt;
+        color: var(--muted);
+        font-weight: 700;
+      }
+      .msg {
+        display: flex;
+        gap: 3mm;
+        margin: 1.2mm 0;
+      }
+      .who {
+        flex: none;
+        width: 13mm;
+        font-size: 8.5pt;
+        font-weight: 700;
+        color: var(--muted);
+        padding-top: 0.4mm;
+      }
+      .msg .text {
+        padding: 1.2mm 3mm;
+        border-radius: 2mm;
+        background: #fff;
+        border: 1px solid var(--line);
+      }
+
+      /* ---------- how it works ---------- */
+      .flow {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 3mm 0 2mm;
+        break-inside: avoid;
+      }
+      .pc {
+        position: relative;
+        flex: none;
+        display: flex;
+        align-items: center;
+        padding: 7mm 3mm 3mm;
+        border: 1.2pt dashed #8a96a0;
+        border-radius: 3mm;
+      }
+      .pc-label {
+        position: absolute;
+        top: 1.2mm;
+        left: 3.5mm;
+        font-size: 8.5pt;
+        font-weight: 700;
+        color: var(--muted);
+      }
+      .node {
+        flex: none;
+        width: 44mm;
+        padding: 2.5mm 2mm;
+        border: 1.2pt solid var(--accent);
+        border-radius: 2.5mm;
+        background: var(--accent-soft);
+        text-align: center;
+        line-height: 1.45;
+      }
+      .node b {
+        display: block;
+        font-size: 10.5pt;
+      }
+      .node span {
+        display: block;
+        font-size: 8.3pt;
+        color: var(--muted);
+      }
+      .node .chip {
+        display: inline-block;
+        margin-top: 1.2mm;
+        padding: 0 2mm;
+        border-radius: 99px;
+        background: #fff;
+        font-size: 8pt;
+        color: var(--ink);
+      }
+      .node.cloud {
+        width: 30mm;
+        border-color: #8a96a0;
+        background: var(--soft);
+      }
+      .wire {
+        flex: none;
+        width: 24mm;
+        padding: 0 1.5mm;
+        font-size: 7.8pt;
+        line-height: 1.35;
+        color: var(--muted);
+        text-align: center;
+      }
+      .wire.outside {
+        width: 22mm;
+      }
+      .arrow {
+        position: relative;
+        height: 1.3pt;
+        margin: 1.2mm 1mm;
+        background: var(--accent);
+      }
+      .arrow::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        border-top: 3.2pt solid transparent;
+        border-bottom: 3.2pt solid transparent;
+      }
+      .arrow.right::after {
+        right: -1pt;
+        border-left: 5.5pt solid var(--accent);
+      }
+      .arrow.left::after {
+        left: -1pt;
+        border-right: 5.5pt solid var(--accent);
+      }
+      .flow-steps {
+        list-style: none;
+        padding-left: 0;
+        font-size: 9.2pt;
+      }
+      .flow-steps li {
+        margin: 0.4mm 0;
+      }
+
+      /* ---------- numbered markers (as on the screenshots) ---------- */
+      .pin,
+      .pin-inline {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background: var(--mark);
+        color: #fff;
+        font-weight: 700;
+        line-height: 1;
+      }
+      .pin-inline {
+        width: 4.2mm;
+        height: 4.2mm;
+        font-size: 7.5pt;
+        vertical-align: 0.2mm;
+      }
+      figure {
+        margin: 2mm 0 3mm;
+        break-inside: avoid;
+      }
+      figure img {
+        display: block;
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 1.5mm;
+      }
+      figure.shot {
+        width: 84%;
+      }
+      figcaption {
+        margin-top: 1mm;
+        font-size: 8.3pt;
+        color: var(--muted);
+      }
+      .popup-guide {
+        display: flex;
+        gap: 7mm;
+        align-items: flex-start;
+        margin: 2.5mm 0;
+        break-inside: avoid;
+      }
+      .keep-next {
+        break-after: avoid;
+      }
+      .popup {
+        flex: none;
+        width: 52mm;
+        margin: 0 0 0 6mm;
+      }
+      .popup-shot {
+        position: relative;
+      }
+      .popup .pin {
+        position: absolute;
+        left: -6.5mm;
+        width: 5mm;
+        height: 5mm;
+        margin-top: -2.5mm;
+        font-size: 8pt;
+      }
+      .pins {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        font-size: 9pt;
+        line-height: 1.55;
+        counter-reset: pin;
+      }
+      .pins li {
+        position: relative;
+        margin: 0 0 2mm;
+        padding-left: 7mm;
+        counter-increment: pin;
+      }
+      .pins li::before {
+        content: counter(pin);
+        position: absolute;
+        left: 0;
+        top: 0.6mm;
+        width: 4.6mm;
+        height: 4.6mm;
+        border-radius: 50%;
+        background: var(--mark);
+        color: #fff;
+        font-size: 7.5pt;
+        font-weight: 700;
+        line-height: 4.6mm;
+        text-align: center;
+      }
+      .asks {
+        list-style: none;
+        padding-left: 0;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5mm 4mm;
+      }
+      .asks li {
+        margin: 0;
+        padding: 1.2mm 3mm;
+        border-radius: 2mm;
+        background: var(--soft);
+      }
+      .asks li.wide {
+        grid-column: 1 / -1;
+      }
+      .end a {
+        white-space: nowrap;
+      }
+      .end {
+        margin-top: 8mm;
+        padding-top: 2mm;
+        border-top: 1px solid var(--line);
+        font-size: 8.5pt;
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <header class="title">
+      <img src="../../desktop-extension/icon.png" alt="" />
+      <div>
+        <p class="kicker">Claude Desktop 用の拡張機能（非公式）</p>
+        <h1>Claude Usage 取扱説明書</h1>
+        <p class="lead">Claude が、自分の「5時間制限」と「週間制限」の残りを確かめられるようにします。</p>
+        <p class="meta">バージョン <span data-version>0.3.0</span></p>
+      </div>
+    </header>
+
+    <section>
+      <h2><span class="num">1</span>できること</h2>
+      <p>Claude Desktop で Claude に「使用量の残りは？」と聞くと、5時間制限と週間制限があと何 % 残っているか、いつリセットされるかを答えてくれます。</p>
+      <div class="chat">
+        <p class="chat-label">会話の例（イメージ）</p>
+        <div class="msg"><span class="who">あなた</span><span class="text">今の使用量の残りは？</span></div>
+        <div class="msg">
+          <span class="who">Claude</span
+          ><span class="text"
+            >5時間制限は残り 77%（2時間19分後にリセット）、週間制限は残り
+            59%（3日17時間後にリセット）です。まだ余裕があるので、このまま作業を続けられます。</span
+          >
+        </div>
+      </div>
+      <p>長い作業の前や途中で Claude が自分から残りを確かめ、上限に達する前に作業を保存してまとめる、といった使い方もできます（<a href="#skill">7 章</a>）。</p>
+    </section>
+
+    <section>
+      <h2><span class="num">2</span>同梱物</h2>
+      <table class="files">
+        <colgroup>
+          <col style="width: 50mm" />
+          <col />
+        </colgroup>
+        <thead>
+          <tr>
+            <th>名前</th>
+            <th>内容</th>
+          </tr>
+        </thead>
+        <tr>
+          <td><code>取扱説明書.pdf</code></td>
+          <td>この説明書</td>
+        </tr>
+        <tr>
+          <td><code>claude-usage.mcpb</code></td>
+          <td>Claude Desktop に入れる拡張機能「Claude Usage」</td>
+        </tr>
+        <tr>
+          <td><code>usage-bridge-for-claude</code>（フォルダ）</td>
+          <td>Chrome / Edge に入れる拡張機能「Usage Bridge for Claude」</td>
+        </tr>
+        <tr>
+          <td><code>claude-usage-skill.zip</code></td>
+          <td>（任意）使用量の気にかけ方を Claude に教える Skill</td>
+        </tr>
+      </table>
+      <p class="small">2 つの拡張機能は組で使います。どちらか片方だけでは動きません。</p>
+    </section>
+
+    <section>
+      <h2><span class="num">3</span>必要なもの</h2>
+      <ul>
+        <li>Claude Desktop（Windows または macOS）</li>
+        <li>Google Chrome または Microsoft Edge（パソコン版）</li>
+        <li>5時間制限・週間制限のある Claude のプラン（Pro、Max、Team など）のアカウント</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2><span class="num">4</span>しくみ</h2>
+      <div
+        class="flow"
+        role="img"
+        aria-label="Claude Desktop の Claude Usage とブラウザの Usage Bridge for Claude がパソコンの中でつながり、ブラウザが claude.ai から使用量を読む"
+      >
+        <div class="pc">
+          <span class="pc-label">あなたのパソコン</span>
+          <div class="node">
+            <b>Claude Desktop</b>
+            <span>拡張機能<br />「Claude Usage」</span>
+            <span class="chip">① Claude が尋ねる</span>
+          </div>
+          <div class="wire">
+            ② 読んで
+            <div class="arrow right"></div>
+            <div class="arrow left"></div>
+            ④ 答え<br />127.0.0.1
+          </div>
+          <div class="node">
+            <b>Chrome / Edge</b>
+            <span>拡張機能<br />「Usage Bridge<br />for Claude」</span>
+          </div>
+        </div>
+        <div class="wire outside">
+          ③ ログインの<br />まま読む
+          <div class="arrow right"></div>
+          <div class="arrow left"></div>
+        </div>
+        <div class="node cloud">
+          <b>claude.ai</b>
+          <span>あなたの<br />使用量</span>
+        </div>
+      </div>
+      <ol class="flow-steps">
+        <li>① Claude が <code>get_claude_usage</code> というツールで残りを尋ねます。</li>
+        <li>② Claude Desktop の「Claude Usage」が、ブラウザの「Usage Bridge for Claude」に読み取りを頼みます。</li>
+        <li>③ 「Usage Bridge for Claude」が、ブラウザのログインのまま claude.ai から使用量を読みます。</li>
+        <li>④ 答えが同じ道を戻り、数秒で Claude に届きます。</li>
+      </ol>
+      <ul>
+        <li><b>claude.ai を読むのは、Claude が聞いたときだけです。</b>定期的なチェックはしません。</li>
+        <li>ブラウザのログインをそのまま使うので、パスワードや Cookie をコピーする必要はありません。</li>
+        <li>使用量の数字は、このパソコンの中（127.0.0.1）だけで受け渡しします。外部には送りません。</li>
+        <li>
+          ブラウザの拡張機能は、Claude Desktop とのパソコン内の接続を 1 本つないだまま待機します。Claude Desktop が起動していない間は、1 分に 1
+          回つなぎ直しを試みるだけです。
+        </li>
+      </ul>
+    </section>
+
+    <section id="install">
+      <h2><span class="num">5</span>インストール</h2>
+      <p>次の 6 つの手順で準備します（5 分ほど）。画面の表示名は、アプリのバージョンや表示言語によって少し違うことがあります。</p>
+
+      <div class="step">
+        <h3><span class="badge">手順 1</span>ZIP を展開して、置き場所を決める</h3>
+        <ol>
+          <li>
+            ダウンロードした <code>claude-usage-checker.zip</code> を展開します。
+            <ul>
+              <li>Windows：ZIP を右クリックして「すべて展開」</li>
+              <li>Mac：ZIP をダブルクリック</li>
+            </ul>
+          </li>
+          <li>できた <code>claude-usage-checker</code> フォルダを、「ドキュメント」など、この先も消さない場所に移します。</li>
+        </ol>
+        <p class="warn">
+          ブラウザは、手順 3
+          で選ぶフォルダから拡張機能を読み込み続けます。フォルダを削除したり移動したりすると動かなくなるので、「ダウンロード」フォルダの整理などで消さないよう注意してください。
+        </p>
+      </div>
+
+      <div class="step">
+        <h3><span class="badge">手順 2</span>Claude Desktop に「Claude Usage」を入れる</h3>
+        <ol>
+          <li>Claude Desktop を起動しておきます。</li>
+          <li>
+            <code>claude-usage.mcpb</code> をダブルクリックします。Claude Desktop
+            に拡張機能の画面が開くので、「インストール」（Install）を押します。設定欄（Organization、Local port）は空欄・既定値のままで構いません。
+          </li>
+          <li>「設定」（Settings）→「拡張機能」（Extensions）の一覧に「Claude Usage」があり、オン（有効）になっていれば完了です。</li>
+        </ol>
+        <p class="note">
+          <b>ダブルクリックで開かないとき：</b>Claude Desktop の「設定」→「拡張機能」→「詳細設定」（Advanced settings）を開き、「Extension
+          Developer」の「Install Extension…」を押して <code>claude-usage.mcpb</code> を選びます。
+        </p>
+      </div>
+
+      <div class="step">
+        <h3><span class="badge">手順 3</span>ブラウザに「Usage Bridge for Claude」を入れる</h3>
+        <figure class="shot">
+          <img
+            src="chrome-extensions.png"
+            alt="Chrome の拡張機能の画面。右上のデベロッパー モードがオン（1）、その下の左端にパッケージ化されていない拡張機能を読み込むボタン（2）。一覧に Usage Bridge for Claude 0.3.0 が表示されている"
+          />
+        </figure>
+        <ol>
+          <li>Chrome のアドレスバーに <code>chrome://extensions</code> と入力して開きます。</li>
+          <li>右上の「デベロッパー モード」をオンにします（図の <span class="pin-inline">1</span>）。</li>
+          <li>
+            「パッケージ化されていない拡張機能を読み込む」を押し（図の <span class="pin-inline">2</span>）、<code>claude-usage-checker</code> フォルダの中の
+            <code>usage-bridge-for-claude</code> フォルダを選びます。
+          </li>
+          <li>一覧に「Usage Bridge for Claude」が表示されれば完了です。</li>
+          <li>
+            ツールバーのパズルのピースの形のボタン（拡張機能）を押し、「Usage Bridge for
+            Claude」の横のピンのアイコンを押すと、ツールバーに固定されて使いやすくなります。
+          </li>
+        </ol>
+        <p class="note">
+          <b>Microsoft Edge の場合：</b><code>edge://extensions</code> を開き、「開発者モード」をオンにしてから「展開して読み込み」を押して、同じ
+          <code>usage-bridge-for-claude</code> フォルダを選びます。
+        </p>
+      </div>
+
+      <div class="step">
+        <h3><span class="badge">手順 4</span>claude.ai にログインする</h3>
+        <p>
+          同じブラウザで
+          <a href="https://claude.ai">https://claude.ai</a> を開き、ログインします（ログイン済みなら不要です）。ログインしたあとは、タブを閉じても構いません。
+        </p>
+      </div>
+
+      <div class="step">
+        <h3><span class="badge">手順 5</span>ブラウザで動作を確かめる</h3>
+        <p class="keep-next">ツールバーの「Usage Bridge for Claude」のアイコンを押すと、次のような画面が開きます。</p>
+        <div class="popup-guide">
+          <figure class="popup">
+            <div class="popup-shot">
+              <img
+                src="../popup.png"
+                alt="Usage Bridge for Claude の画面。Connected to Claude Desktop、claude.ai read 2m ago、5-hour 77% left、Weekly 24% left、Refresh now ボタン、Settings"
+              />
+              <span class="pin" style="top: 15.1%">1</span>
+              <span class="pin" style="top: 25.8%">2</span>
+              <span class="pin" style="top: 44.1%">3</span>
+              <span class="pin" style="top: 54.8%">4</span>
+              <span class="pin" style="top: 68%">5</span>
+              <span class="pin" style="top: 76.7%">6</span>
+            </div>
+            <figcaption><span class="pin-inline">1</span> <span class="pin-inline">2</span> の点が緑なら準備完了です。</figcaption>
+          </figure>
+          <ol class="pins">
+            <li><b>Connected to Claude Desktop</b>：Claude Desktop とつながっています。</li>
+            <li>
+              <b>claude.ai read 2m ago</b>：2 分前に claude.ai から使用量を読みました。「sent to Claude Desktop」は、それを Claude Desktop
+              に渡したという意味です。
+            </li>
+            <li><b>5-hour</b>：5時間制限。「77% left」は残り 77%、「resets in 2h 19m」は 2 時間 19 分後にリセットされるという意味です。</li>
+            <li><b>Weekly</b>：週間制限。バーは使った量を表し、残りが 30% を切るとオレンジ、10% を切ると赤になります。</li>
+            <li><b>Refresh now</b>：今すぐ読み直します。この画面を開いたときも、自動で読み直します。</li>
+            <li><b>Settings</b>：ポート番号の設定です（ふだんは変更不要）。</li>
+          </ol>
+        </div>
+      </div>
+
+      <div class="step">
+        <h3><span class="badge">手順 6</span>Claude に聞いてみる</h3>
+        <p>Claude Desktop で新しいチャットを開き、「今の使用量の残りは？」と聞いてみてください。数秒で残りの % とリセットまでの時間が返ってくれば完了です。</p>
+        <p>初めてのときは、「Claude Usage」のツールを使ってよいか確認されることがあります。許可してください。</p>
+        <p>うまく動かないときは、<a href="#trouble">9 章「困ったとき」</a>を見てください。</p>
+      </div>
+    </section>
+
+    <section>
+      <h2><span class="num">6</span>使い方</h2>
+      <p>ふだんどおり Claude に話しかけるだけです。たとえば：</p>
+      <ul class="asks">
+        <li>「使用量の残りは？」</li>
+        <li>「5時間制限はいつリセットされる？」</li>
+        <li>「週間制限はあと何 % 残ってる？」</li>
+        <li>「残りが少なくなったら教えて」</li>
+        <li class="wide">「作業の区切りごとに使用量を確認して、残りが 20% を切ったら作業を保存してまとめて」</li>
+      </ul>
+      <ul>
+        <li>確認には数秒かかります。直前 60 秒以内に読んだ値があれば、読み直さずにそれを使います。</li>
+        <li>claude.ai から使用量を読むこと自体は、制限にカウントされません（Claude とのやり取りの分は、いつもどおりカウントされます）。</li>
+        <li>拡張機能を入れたブラウザが起動している必要があります。ブラウザを閉じているときは、前回読んだ値を「古い値」として答えます。</li>
+      </ul>
+    </section>
+
+    <section id="skill">
+      <h2><span class="num">7</span>Claude に自分から気にかけてもらう（任意）</h2>
+      <p>
+        同梱の Skill（<code>claude-usage-skill.zip</code>）を追加すると、Claude が長い作業の前や途中で自分から残りを確かめ、次のように振る舞うようになります。
+      </p>
+      <table>
+        <colgroup>
+          <col style="width: 50mm" />
+          <col />
+        </colgroup>
+        <thead>
+          <tr>
+            <th>状況</th>
+            <th>Claude の振る舞い</th>
+          </tr>
+        </thead>
+        <tr>
+          <td>5時間制限の残りが 30% 以上</td>
+          <td>ふだんどおり作業する</td>
+        </tr>
+        <tr>
+          <td>5時間制限の残りが 10〜30%</td>
+          <td>新しい大きな作業は控え、こまめに保存する</td>
+        </tr>
+        <tr>
+          <td>5時間制限の残りが 10% 未満</td>
+          <td>今の作業を区切って保存し、終わったこと・残っていることとリセット時刻を伝える</td>
+        </tr>
+        <tr>
+          <td>週間制限の残りが 10% 未満</td>
+          <td>あなたに知らせる（リセットまで数日かかることがあるため）</td>
+        </tr>
+      </table>
+      <h3>追加のしかた</h3>
+      <ol>
+        <li>Claude Desktop のサイドバーで「カスタマイズ」（Customize）→「スキル」（Skills）を開きます。</li>
+        <li>「＋」→「スキルを作成」（Create skill）→「スキルをアップロード」（Upload a skill）を選び、<code>claude-usage-skill.zip</code> を選びます。</li>
+      </ol>
+      <p class="note">
+        Skill を使うには、「コード実行とファイル作成」（Code execution and file creation）が有効になっている必要があります。Pro・Max
+        は「設定」→「機能」（Capabilities）で有効にします。Team・Enterprise では組織の管理者が設定します。
+      </p>
+    </section>
+
+    <section>
+      <h2><span class="num">8</span>設定（ふだんは変更不要）</h2>
+      <table class="settings">
+        <colgroup>
+          <col style="width: 50mm" />
+          <col style="width: 28mm" />
+          <col />
+        </colgroup>
+        <thead>
+          <tr>
+            <th>場所</th>
+            <th>項目</th>
+            <th>内容</th>
+          </tr>
+        </thead>
+        <tr>
+          <td rowspan="2">Claude Desktop の「設定」→「拡張機能」→「Claude Usage」</td>
+          <td>Organization</td>
+          <td>個人のプランとチームなど、複数の組織に入っている場合に、使う組織の名前。空欄なら、5時間・週間の制限がある最初の組織を使います。</td>
+        </tr>
+        <tr>
+          <td>Local port</td>
+          <td>受け渡しに使うポート番号（既定は 47832）。ほかのアプリと重なる場合だけ変えます。</td>
+        </tr>
+        <tr>
+          <td>ブラウザの拡張機能の画面の「Settings」</td>
+          <td>Port</td>
+          <td>Claude Desktop 側の Local port と同じ番号にして、「Save」を押します。</td>
+        </tr>
+      </table>
+    </section>
+
+    <section id="trouble">
+      <h2><span class="num">9</span>困ったとき</h2>
+      <table class="trouble">
+        <colgroup>
+          <col style="width: 66mm" />
+          <col />
+        </colgroup>
+        <thead>
+          <tr>
+            <th>こんなとき</th>
+            <th>こうしてください</th>
+          </tr>
+        </thead>
+        <tr>
+          <td>ブラウザの拡張機能の画面の 1 行目が赤く、「Not connected to Claude Desktop」と表示される</td>
+          <td>
+            Claude Desktop が起動していて、「Claude Usage」がオンになっているか確かめます。Claude Desktop を起動してからつながるまで、最大 1
+            分かかります（拡張機能の画面を開き直すと、すぐにつなぎ直します）。ポート番号を変えた場合は、両方を同じ番号にします。
+          </td>
+        </tr>
+        <tr>
+          <td>2 行目が赤く、「Sign in to claude.ai in this browser」と表示される</td>
+          <td>そのブラウザで claude.ai にログインし直します。</td>
+        </tr>
+        <tr>
+          <td>2 行目が赤く、「Could not reach claude.ai」と表示される</td>
+          <td>インターネットにつながっているか確かめます。claude.ai のタブを開いた状態で「Refresh now」を押すと、読めることもあります。</td>
+        </tr>
+        <tr>
+          <td>5-hour・Weekly の横に「no limit」、または組織名の下に「No usage data」と表示される</td>
+          <td>その組織（Enterprise プランなど）には、5時間・週間の制限がありません。</td>
+        </tr>
+        <tr>
+          <td>フォルダを選んだときに「マニフェスト ファイルが見つからないか、読み取ることができません」と表示される</td>
+          <td><code>claude-usage-checker</code> フォルダではなく、その中の <code>usage-bridge-for-claude</code> フォルダを選びます。</td>
+        </tr>
+        <tr>
+          <td>Claude が「ブラウザの拡張機能につながっていない」（<code>browser_not_connected</code>）と答える</td>
+          <td>Chrome / Edge を起動し、「Usage Bridge for Claude」がオンになっているか確かめます。</td>
+        </tr>
+        <tr>
+          <td>Claude が「古い値」（<code>stale</code>）だと答える</td>
+          <td>その場では読めなかったので、前回の値を答えています。Claude が伝える理由（ブラウザが閉じている、ログインが切れているなど）を確かめます。</td>
+        </tr>
+        <tr>
+          <td>Claude がツールを使わない、知らないと答える</td>
+          <td>「Claude Usage」がオンになっているか確かめてから、新しいチャットで「<code>get_claude_usage</code> ツールで使用量を確認して」と頼みます。</td>
+        </tr>
+        <tr>
+          <td>ブラウザの起動時に「開発者モードの拡張機能を無効にする」という案内が出る</td>
+          <td>「無効にする」は押さずに閉じます。</td>
+        </tr>
+        <tr>
+          <td>フォルダを移動・削除してしまった</td>
+          <td>ブラウザの拡張機能の一覧（<code>chrome://extensions</code>）で「Usage Bridge for Claude」を削除し、手順 3 をやり直します。</td>
+        </tr>
+      </table>
+      <p>どれにも当てはまらないときは、Claude Desktop とブラウザを再起動してみてください。</p>
+    </section>
+
+    <section>
+      <h2><span class="num">10</span>更新とアンインストール</h2>
+      <h3>新しいバージョンに更新するとき</h3>
+      <ol>
+        <li>新しい <code>claude-usage-checker.zip</code> を展開します。</li>
+        <li>新しい <code>claude-usage.mcpb</code> をダブルクリックして、インストールし直します。</li>
+        <li>古い <code>claude-usage-checker</code> フォルダを削除し、新しいフォルダを同じ場所に置きます。</li>
+        <li>ブラウザの拡張機能の一覧（<code>chrome://extensions</code>）で、「Usage Bridge for Claude」の更新ボタン（↻）を押します。</li>
+      </ol>
+      <h3>アンインストールするとき</h3>
+      <ol>
+        <li>Claude Desktop：「設定」→「拡張機能」→「Claude Usage」を開き、アンインストールします。</li>
+        <li>ブラウザ：拡張機能の一覧で、「Usage Bridge for Claude」の「削除」を押します。</li>
+        <li><code>claude-usage-checker</code> フォルダを削除します。</li>
+        <li>
+          （任意）使用量の記録ファイルを削除します。Windows は <code>%LOCALAPPDATA%\claude-usage-checker</code>、Mac はホームフォルダの
+          <code>.cache/claude-usage-checker</code> です。
+        </li>
+      </ol>
+    </section>
+
+    <section>
+      <h2><span class="num">11</span>ご注意</h2>
+      <ul>
+        <li><b>非公式のツールです。</b>Anthropic とは関係がなく、Anthropic のサポート対象でもありません。</li>
+        <li>
+          claude.ai の設定画面が内部で使っている仕組み（公開されていない API）から使用量を読んでいます。claude.ai
+          側の変更により、予告なく使えなくなることがあります。
+        </li>
+        <li>
+          Claude の利用規約では、許可された方法以外での、スクリプトなどによる自動的なアクセスが禁じられています。本ツールは Claude
+          に聞かれたときに自分の使用量を読むだけのものですが、非公式な方法であることをご理解のうえ、ご自身の判断でお使いください。
+        </li>
+        <li>
+          claude.ai から取り出して使うのは、組織の名前と使用量の数字だけです。会話の内容は読みません。パスワードや Cookie
+          の中身を読み取ったり、保存したりすることもありません。
+        </li>
+        <li>使用量の数字は、このパソコンの中（127.0.0.1）だけで受け渡しし、外部には送りません。</li>
+        <li>Firefox と Safari には対応していません。</li>
+        <li>本ツールは無保証です。ご利用によって生じた損害について、作者は責任を負いません。</li>
+      </ul>
+      <p class="end">
+        claude-usage-checker バージョン <span data-version>0.3.0</span><br />
+        最新版と問い合わせ先：<a href="https://github.com/60fullerene/claude-usage-checker">https://github.com/60fullerene/claude-usage-checker</a>
+      </p>
+    </section>
+  </body>
+</html>
